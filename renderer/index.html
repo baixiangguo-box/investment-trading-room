@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="color-scheme" content="light">
+  <title>投资交易室 · 模拟炒股</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="#market" data-action="navigate" data-page="market" aria-label="投资交易室首页">
+      <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M8 29V19h5v10zm10 0V13h5v16zm10 0V7h5v22z" fill="currentColor"/><path d="m7 16 8-7 7 4L33 4" fill="none" stroke="currentColor" stroke-width="2"/></svg></span>
+      <span><strong>投资交易室</strong><small>模拟炒股</small></span>
+    </a>
+    <nav class="main-nav" aria-label="主导航">
+      <button data-action="navigate" data-page="market" class="active">行情</button>
+      <button data-action="navigate" data-page="watch">自选</button>
+      <button data-action="navigate" data-page="trade">交易</button>
+      <button data-action="navigate" data-page="account">账户</button>
+    </nav>
+    <div id="connection-status" class="connection-status" role="status">正在连接本地账户…</div>
+  </header>
+  <div id="global-notice"></div>
+  <main id="content" tabindex="-1"><div class="loading-state"><span class="spinner"></span><h1>正在打开投资交易室</h1><p>读取本地账户与最新行情</p></div></main>
+  <footer class="app-footer"><span>本地模拟账户 · 沪深京行情</span><span id="footer-status">行情由网络获取，交易仅记入本机模拟账户</span></footer>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <dialog id="app-dialog" aria-labelledby="dialog-title"></dialog>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

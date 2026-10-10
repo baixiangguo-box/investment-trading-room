@@ -1,0 +1,76 @@
+{
+  "name": "investment-trading-room",
+  "productName": "投资交易室",
+  "version": "1.2.4",
+  "description": "联网行情、本地账户的A股模拟交易桌面程序",
+  "author": "Investment Trading Room",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "desktop/main.mjs",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/account-service.mjs tests/market.test.mjs tests/ui-pure.mjs tests/polling.mjs",
+    "test:core": "node --test tests/account-service.mjs",
+    "test:market": "node --test tests/market.test.mjs",
+    "test:ui": "node --test tests/ui-pure.mjs tests/polling.mjs",
+    "package:dir": "electron-builder --win --x64 --dir --publish never",
+    "package:win": "electron-builder --win nsis --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "org.investment.tradingroom",
+    "productName": "投资交易室",
+    "copyright": "投资交易室 · 模拟交易软件",
+    "asar": true,
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "desktop/**/*",
+      "renderer/**/*",
+      "core/**/*",
+      "services/**/*",
+      "assets/**/*",
+      "package.json",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/app.ico",
+      "artifactName": "InvestmentTradingRoom-Setup-${version}-${arch}.${ext}",
+      "signAndEditExecutable": true,
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "投资交易室",
+      "deleteAppDataOnUninstall": false,
+      "installerLanguages": [
+        "zh_CN",
+        "en_US"
+      ],
+      "displayLanguageSelector": false,
+      "language": "2052"
+    }
+  }
+}

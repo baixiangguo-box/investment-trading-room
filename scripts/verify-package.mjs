@@ -1,0 +1,20 @@
+import { listPackage, statFile, extractFile } from '@electron/asar';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import assert from 'node:assert/strict';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const expected=JSON.parse(await readFile(path.join(root,'package.json'),'utf8'));
+const archive=process.argv[2]||path.join(root,'release','win-unpacked','resources','app.asar');
+const names=listPackage(archive).map(n=>n.replace(/^[/\\]+/,'').replaceAll('\\','/'));
+const files=names.filter(n=>!statFile(archive,n).files);
+for(const notice of ['LICENSE','THIRD_PARTY_NOTICES.md'])assert(files.includes(notice),`Required notice missing: ${notice}`);
+assert(!files.some(n=>/\.sqlite(?:-|$)|market-cache|\.qa|browser-qa|desktop-qa|node_modules|ui-backup/.test(n)),'No account or test data may be shipped');
+const checks=[];
+for(const file of files){const bytes=extractFile(archive,file);if(file==='package.json'){const metadata=JSON.parse(bytes);assert.equal(metadata.version,expected.version);assert.equal(metadata.main,'desktop/main.mjs');assert.equal(metadata.name,'investment-trading-room');assert.equal(metadata.license,'MIT');}else{assert.equal(Buffer.compare(bytes,await readFile(path.join(root,file))),0,`Packaged source differs: ${file}`);}checks.push({file,sha256:createHash('sha256').update(bytes).digest('hex')});}
+for(const notice of ['LICENSE.electron.txt','LICENSES.chromium.html'])assert((await readFile(path.resolve(path.dirname(archive),'..',notice))).length>0,`Runtime notice missing or empty: ${notice}`);
+const result={ok:true,archive,sourceFiles:checks,privateDataIncluded:false};
+await mkdir(path.join(root,'.qa'),{recursive:true});
+await writeFile(path.join(root,'.qa','package-verification.json'),JSON.stringify(result,null,2));
+console.log(JSON.stringify({ok:true,archive,fileCount:checks.length,privateDataIncluded:false}));
