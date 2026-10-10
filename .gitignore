@@ -1,0 +1,35 @@
+# Dependencies and build output
+node_modules/
+release/
+dist/
+coverage/
+.qa/
+*.log
+*.tsbuildinfo
+
+# Local account databases, exports and market caches
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+market-cache/
+投资交易室数据/
+backup*.json
+*-backup*.json
+native-export.json
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+*.key
+.npmrc
+
+# Editor and OS metadata
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
