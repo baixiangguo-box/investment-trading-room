@@ -30,9 +30,8 @@
 |---|---|---|
 | Windows 11 | x64：`InvestmentTradingRoom-Setup-<版本>-x64.exe` | 运行 EXE，使用“投资交易室”快捷方式启动 |
 | macOS 13 或更新版本，Apple Silicon | arm64：`InvestmentTradingRoom-Mac-<版本>-arm64.dmg` | 打开 DMG，将“投资交易室”拖入 Applications，再从应用程序启动 |
-| macOS 13 或更新版本，Intel | x64：`InvestmentTradingRoom-Mac-<版本>-x64.dmg` | 与 arm64 相同；不要安装错误架构 |
 
-Mac 的“关于本机”中，显示 Apple 芯片的选择 arm64，显示 Intel 处理器的选择 x64。ZIP 为同架构的替代分发包，解压后将 `.app` 放入 Applications。Mac 最低版本来自 [Electron 44 的系统要求](https://www.electronjs.org/blog/electron-44-0)；自动化 Runner 使用 macOS 15，macOS 13/14 的实机兼容性尚未验收。
+Mac 的“关于本机”中，显示 Apple 芯片（M 系列）的使用 arm64 包；本版本不提供 Intel Mac 支持。ZIP 为替代分发包，解压后将 `.app` 放入 Applications。Mac 最低版本来自 [Electron 44 的系统要求](https://www.electronjs.org/blog/electron-44-0)；自动化 Runner 使用 macOS 15，macOS 13/14 的实机兼容性尚未验收。
 
 **Mac 版本属于预览：尚未完成真实 Mac 的 DMG 安装、系统中文输入法和原生文件对话框验收。** 构建和自动化结果以 [Actions](https://github.com/baixiangguo-box/investment-trading-room/actions) 和 [跨平台验收记录](docs/CROSS_PLATFORM.md) 为准。没有 Apple Developer 凭据时包仅做 ad-hoc 开发签名，未进行 Developer ID 签名或公证；Gatekeeper 可能阻止启动。遵循系统提供的安全验证流程，不关闭 Gatekeeper/SIP 或删除下载隔离属性。
 
@@ -51,7 +50,7 @@ Windows 卸载保留原数据目录；Mac 删除 `.app` 不会主动删除上述
 
 ## 从源码运行
 
-开发环境：Windows 11 x64，或 macOS 13+ 的 arm64/x64；Node.js 22.13.0 或更新版本（含 `node:sqlite`）、npm。CI 固定 Node.js 24.20.0。依赖仍由 `package-lock.json` 固定为 Electron 44.7.0、electron-builder 26.15.3。
+开发环境：Windows 11 x64，或 macOS 13+ Apple Silicon（arm64）；Node.js 22.13.0 或更新版本（含 `node:sqlite`）、npm。CI 固定 Node.js 24.20.0。依赖仍由 `package-lock.json` 固定为 Electron 44.7.0、electron-builder 26.15.3。
 
 ```powershell
 npm ci
@@ -106,20 +105,17 @@ Get-FileHash -Algorithm SHA256 .\release\InvestmentTradingRoom-Setup-1.3.0-x64.e
 npm ci
 npm run package:mac:arm64
 node scripts/verify-package.mjs "release/mac-arm64/投资交易室.app" --arch=arm64
-# Intel Mac 或独立 x64 构建
-npm run package:mac:x64
-node scripts/verify-package.mjs "release/mac/投资交易室.app" --arch=x64
 ```
 
-输出独立命名的 arm64/x64 DMG 和 ZIP。图标从原绘图脚本生成 1024px PNG 及多尺寸 ICNS；已有图标随源码提供，普通构建无需 Python/Pillow。Mac 的运行时许可保存在 `.app/Contents/Resources`，与 Windows 的安装根目录不同。
+输出独立命名的 arm64 DMG 和 ZIP。图标从原绘图脚本生成 1024px PNG 及多尺寸 ICNS；已有图标随源码提供，普通构建无需 Python/Pillow。Mac 的运行时许可保存在 `.app/Contents/Resources`，与 Windows 的安装根目录不同。
 
-默认 Mac 命令仅做 ad-hoc 开发签名，保留 hardened runtime。可选正式流程为 `npm run package:mac:arm64:signed` 或 `npm run package:mac:x64:signed`：签名证书通过本机钥匙串或 `CSC_LINK`/`CSC_KEY_PASSWORD` 配置，公证通过 Apple 身份凭据配置，不能把证书或密钥写入源码。签名后仍须验证真实 Developer ID、`codesign --verify --deep --strict` 和公证/stapler 结果，缺少公证凭据的跳过日志不能称为公证成功。
+默认 Mac 命令仅做 ad-hoc 开发签名，保留 hardened runtime。可选正式流程为 `npm run package:mac:arm64:signed`：签名证书通过本机钥匙串或 `CSC_LINK`/`CSC_KEY_PASSWORD` 配置，公证通过 Apple 身份凭据配置，不能把证书或密钥写入源码。签名后仍须验证真实 Developer ID、`codesign --verify --deep --strict` 和公证/stapler 结果，缺少公证凭据的跳过日志不能称为公证成功。
 
 ## GitHub Actions 与发布
 
-[build.yml](.github/workflows/build.yml) 在 PR、main 更新或手动触发时，使用 Windows x64、Mac arm64、Mac x64 原生 Runner；运行语法、160 项逻辑测试、隔离 Electron 回归、构建和包核验，并实际启动生成的 EXE/`.app` 两次检查 SQLite 保存与正常退出。下载结果在对应运行的 Artifacts 中：`packages-windows-x64`、`packages-macos-arm64`、`packages-macos-x64`，每组含 SHA-256 和构建元数据。最小诊断报告单独上传，不上传测试账本。
+[build.yml](.github/workflows/build.yml) 在 PR、main 更新或手动触发时，使用 Windows x64、Mac arm64 原生 Runner；运行语法、160 项逻辑测试、隔离 Electron 回归、构建和包核验，并实际启动生成的 EXE/`.app` 两次检查 SQLite 保存与正常退出。下载结果在对应运行的 Artifacts 中：`packages-windows-x64`、`packages-macos-arm64`，每组含 SHA-256 和构建元数据。最小诊断报告单独上传，不上传测试账本。锁定的 Electron 运行时显式安装，下载最多重试三次；测试失败不自动重试或忽略。
 
-普通提交不创建公开 Release。[release.yml](.github/workflows/release.yml) 由新的 `v*` Tag 或手动输入版本 Tag 触发，重新构建三平台。手动发布必须选择 main，全部成功、Tag 与源码版本一致、五个安装/分发文件齐全后，才在该次运行的源码提交上创建新 Tag 和预览 Release；已有 Tag 指向其他提交时拒绝移动。已有 Release 不覆盖；重复发布同一 Tag 会失败。Windows 未签名、Mac 未完成 Developer ID/公证和实机验收的限制写入发布说明。
+普通提交不创建公开 Release。[release.yml](.github/workflows/release.yml) 由新的 `v*` Tag 或手动输入版本 Tag 触发，重新构建两个目标平台。手动发布必须选择 main，全部成功、Tag 与源码版本一致、三个安装/分发文件齐全后，才在该次运行的源码提交上创建新 Tag 和草稿 Release；所有产物上传完成才公开为预览版。已有 Tag 指向其他提交时拒绝移动。已有 Release 不覆盖；重复发布同一 Tag 会失败。Windows 未签名、Mac 未完成 Developer ID/公证和实机验收的限制写入发布说明。
 
 用户更新软件需要下载新版安装包；GitHub 更新源码不会自动更新已安装的软件。
 

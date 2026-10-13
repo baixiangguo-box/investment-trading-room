@@ -29,14 +29,15 @@ test('Mac close is distinct from quit; native editing and Dock reopening are ava
   for (const role of ['copy', 'paste', 'cut', 'selectAll', 'undo', 'redo', 'hide', 'services', 'minimize', 'front']) assert(items.some(item => item.role === role));
   items.find(item => item.accelerator === 'Command+N').click(); assert.equal(opened, 1);
 });
-test('Mac bundles and both architectures have separate resource/executable layouts', () => {
+test('Windows and Apple Silicon bundles have separate resource/executable layouts', () => {
   const root = path.resolve('example');
-  for (const arch of ['x64', 'arm64']) {
-    const app = packagedPaths(defaultApplicationRoot(root, 'darwin', arch));
+  {
+    const app = packagedPaths(defaultApplicationRoot(root, 'darwin', 'arm64'));
     assert(app.mac); assert.equal(app.archive, path.join(app.root, 'Contents', 'Resources', 'app.asar'));
     assert.equal(app.notices, path.join(app.root, 'Contents', 'Resources'));
     assert.equal(app.executable, path.join(app.root, 'Contents', 'MacOS', '投资交易室'));
   }
+  assert.throws(() => defaultApplicationRoot(root, 'darwin', 'x64'));
   const win = packagedPaths(defaultApplicationRoot(root, 'win32', 'x64'));
   assert(!win.mac); assert.equal(win.archive, path.join(root, 'release', 'win-unpacked', 'resources', 'app.asar'));
 });
@@ -68,6 +69,8 @@ test('packaging keeps the Windows NSIS identity and Mac hardened runtime without
   assert.equal(metadata.build.appId, APP_ID); assert.equal(metadata.build.win.target[0].target, 'nsis');
   assert.equal(metadata.build.nsis.deleteAppDataOnUninstall, false);
   assert.equal(metadata.build.mac.hardenedRuntime, true);
+  for (const target of metadata.build.mac.target) assert.deepEqual(target.arch, ['arm64']);
+  assert.equal(metadata.scripts['package:mac:x64'], undefined);
   assert.equal(metadata.devDependencies.electron, '44.7.0'); assert.equal(metadata.devDependencies['electron-builder'], '26.15.3');
   assert(metadata.build.win.artifactName !== metadata.build.mac.artifactName);
 });

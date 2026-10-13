@@ -23,9 +23,7 @@
     "package:dir": "electron-builder --win --x64 --dir --publish never",
     "package:win": "electron-builder --win nsis --x64 --publish never",
     "package:mac:arm64": "node scripts/build-mac.mjs arm64",
-    "package:mac:x64": "node scripts/build-mac.mjs x64",
-    "package:mac:arm64:signed": "node scripts/build-mac.mjs arm64 --signed",
-    "package:mac:x64:signed": "node scripts/build-mac.mjs x64 --signed"
+    "package:mac:arm64:signed": "node scripts/build-mac.mjs arm64 --signed"
   },
   "devDependencies": {
     "electron": "44.7.0",
@@ -66,8 +64,8 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["arm64", "x64"] },
-        { "target": "zip", "arch": ["arm64", "x64"] }
+        { "target": "dmg", "arch": ["arm64"] },
+        { "target": "zip", "arch": ["arm64"] }
       ],
       "icon": "assets/app.icns",
       "category": "public.app-category.finance",

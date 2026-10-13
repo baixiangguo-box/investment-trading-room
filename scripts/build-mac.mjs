@@ -2,7 +2,7 @@ import { build, Platform, Arch } from 'electron-builder';
 
 if (process.platform !== 'darwin') throw new Error('DMG 构建及签名必须在 macOS 上执行；Windows 请使用 GitHub Actions。');
 const architecture = process.argv[2];
-if (!['arm64', 'x64'].includes(architecture)) throw new Error('请选择 arm64 或 x64。');
+if (architecture !== 'arm64') throw new Error('本版本只提供 Apple Silicon（arm64）Mac 安装包。');
 const signed = process.argv.includes('--signed');
 if (!signed) {
   // CI/development signatures have no publisher identity. Never use signing

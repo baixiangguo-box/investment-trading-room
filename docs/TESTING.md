@@ -20,7 +20,7 @@ npm test
 | 行情 | 源响应解析、沪深京完整目录校验、分页/搜索/排序、缓存与缺字段、日期及来源、新鲜度、并发请求合并、退避、拒绝无效代码、重定向目录原子写入和友好错误 |
 | 界面 | 图表定位、量价与单位、字段缺失、按证券类型展示、输入 DOM 保留、选中股票再次搜索、旧账户响应拒绝 |
 | 轮询 | 串行刷新、页面切换、隐藏/休市调度、失败退避、请求取消与迟到响应 |
-| 跨平台 | Windows 旧目录与 UNC、Mac Application Support、非法隔离路径拒绝、菜单、两种 Mac 包布局、中文空格路径 SQLite/JSON/重开/重置恢复、NSIS/App ID/安全配置连续性 |
+| 跨平台 | Windows 旧目录与 UNC、Mac Application Support、非法隔离路径拒绝、菜单、Windows/Mac 包布局、中文空格路径 SQLite/JSON/重开/重置恢复、NSIS/App ID/安全配置连续性 |
 
 ## 实际 Electron 界面
 
@@ -74,6 +74,6 @@ try {
 
 构建后运行 `node scripts/verify-package.mjs`，检查 `app.asar` 文件与源码一致且无账户、行情缓存或测试数据，再核对 `LICENSE.electron.txt`、`LICENSES.chromium.html`。最后用安装后的真实 EXE 和新的 `--data-dir` 完成首次建户、正常退出重开、最小化恢复；升级验证应比较测试账户的完整账本。新机器安装、系统输入法候选窗、签名/SmartScreen、长期网络稳定性及交易所完整规则均不能仅凭上述自动化结果宣称通过。
 
-Mac 构建后运行 `node scripts/verify-package.mjs "release/mac-arm64/投资交易室.app" --arch=arm64`（Intel 用 `release/mac/投资交易室.app` 和 `--arch=x64`）。另运行 `node scripts/smoke-application.mjs "<应用根目录>"`：启动实际 EXE/`.app`，正常退出，在隔离数据库创建账户，再次启动并检查持久化和正常退出。Mac 退出通过 AppleScript 发送 Quit，不删除隔离账本或修改系统安全设置。CPU 原生 Runner 上测试通过仍不等于物理 Mac 安装与人工全功能验收。
+Mac 构建后运行 `node scripts/verify-package.mjs "release/mac-arm64/投资交易室.app" --arch=arm64`。本版本只提供 Apple Silicon 包。另运行 `node scripts/smoke-application.mjs "<应用根目录>"`：启动实际 EXE/`.app`，正常退出，在隔离数据库创建账户，再次启动并检查持久化和正常退出。Mac 退出通过 AppleScript 发送 Quit，不删除隔离账本或修改系统安全设置。CPU 原生 Runner 上测试通过仍不等于物理 Mac 安装与人工全功能验收。
 
-三个 Runner 的固定版本、执行顺序和 Artifacts 见 `.github/workflows/build.yml`。真实网络探针与系统输入法候选窗口属于单独验收；GitHub Actions 不上传数据库、备份、缓存或整份 `.qa`。生成校验值运行 `node scripts/release-metadata.mjs release`；汇总三平台产物时使用 `--all`。
+两个 Runner 的固定版本、执行顺序和 Artifacts 见 `.github/workflows/build.yml`。真实网络探针与系统输入法候选窗口属于单独验收；GitHub Actions 不上传数据库、备份、缓存或整份 `.qa`。生成校验值运行 `node scripts/release-metadata.mjs release`；汇总 Windows EXE 和 Mac arm64 DMG/ZIP 三个产物时使用 `--all`。
