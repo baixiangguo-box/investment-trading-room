@@ -33,8 +33,12 @@
 | 修改前 Windows 逻辑测试 | 本地 153 项通过 |
 | 新增跨平台逻辑测试 | 本地 7 项通过；总共 160 项 |
 | Windows Electron/打包/真实 EXE | 本地 7 项平台验收、20 项反馈回归在源码和打包 ASAR 均通过；真实 EXE 两次启动、正常退出、SQLite 重新读取通过；18 个包资源核验通过 |
-| Mac arm64 与 x64 原生 CI | 待运行，不宣称通过 |
+| Mac arm64 与 x64 原生 CI | macOS 15 原生 Runner 均通过 160 项逻辑测试、源码 8 项平台/20 项反馈/16 项输入回归；DMG+ZIP 构建、包资源/CPU/许可核验、打包 ASAR 8+20 项回归及真实 `.app` 两次启动、正常退出、SQLite 重读通过 |
+| Windows x64 CI | Windows Server 2022 Runner 通过同一套 160 项逻辑测试、源码 7+20+16 项回归、NSIS 构建、包核验、打包 ASAR 7+20 项回归及真实 EXE 二次启动检查；Windows 11 本地验证见上行 |
+| Windows 本地真实行情与断网重开探针 | 3 个证券报价、160 条日 K、242 条分时及成交量返回正常；隔离缓存重开可读且过期报价不能成交，不等于全部市场实盘验收 |
 | Mac 实机 DMG 安装、Finder/Dock、系统输入法、原生文件对话框 | 尚未完成实机验收 |
 | Mac Developer ID 与公证 | 未配置凭据，未完成；ad-hoc 不等于发行者签名 |
 
 CI 包含实际 `.app`/EXE 的两次启动、正常退出、隔离 SQLite 重新读取；仍不等于物理 Mac 全功能人工验收。物理验收应至少检查拖入 Applications、首次启动、编辑快捷键、中文候选窗口、完整行情、股票详情图表、交易与撤单、账户调整、JSON 导出/恢复、断网以及升级后的旧账户。
+
+首轮修复后的三平台验证记录：[Actions 38434547818](https://github.com/baixiangguo-box/investment-trading-room/actions/runs/38434547818)，源码提交 `4547491e4539cda515e61e7aaff2a21d97c231a6`。最初 Mac 测试未经过 Cocoa 菜单路由，现分别验证 Command+A 菜单配置与原生全选动作，完整选区断言保持不变；详情见测试文档。此后的文档更新、main 与发布构建仍由各自的 CI 再验证。
