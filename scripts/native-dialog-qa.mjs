@@ -38,7 +38,7 @@ async function run() { try {
   const initial = await call('account');
   const file = path.join(directory, 'native-export.json'), corrupt = path.join(directory, 'native-corrupt.json');
   await writeFile(corrupt, '{invalid-json');
-  console.log(JSON.stringify({ directory, file, corrupt, version: JSON.parse(await readFile(path.join(installedRoot || root, installedRoot ? 'resources/app.asar/package.json' : 'package.json'), 'utf8')).version }));
+  console.log(JSON.stringify({ directory, file, corrupt, version: JSON.parse(await readFile(installedRoot ? path.join(packagedPaths(installedRoot).archive, 'package.json') : path.join(root, 'package.json'), 'utf8')).version }));
   await check('Windows原生保存弹窗取消：无账户变化', async () => {
     console.log('ACTION SAVE_CANCEL');
     assert.equal((await call('backup')).cancelled, true);
