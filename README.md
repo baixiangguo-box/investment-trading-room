@@ -119,7 +119,7 @@ node scripts/verify-package.mjs "release/mac/投资交易室.app" --arch=x64
 
 [build.yml](.github/workflows/build.yml) 在 PR、main 更新或手动触发时，使用 Windows x64、Mac arm64、Mac x64 原生 Runner；运行语法、160 项逻辑测试、隔离 Electron 回归、构建和包核验，并实际启动生成的 EXE/`.app` 两次检查 SQLite 保存与正常退出。下载结果在对应运行的 Artifacts 中：`packages-windows-x64`、`packages-macos-arm64`、`packages-macos-x64`，每组含 SHA-256 和构建元数据。最小诊断报告单独上传，不上传测试账本。
 
-普通提交不创建公开 Release。[release.yml](.github/workflows/release.yml) 由新的 `v*` Tag 或手动输入已存在的版本 Tag 触发，重新构建三平台；全部成功、Tag 与源码版本一致、五个安装/分发文件齐全后才生成新的预览 Release。已有 Release 不覆盖；重复发布同一 Tag 会失败。Windows 未签名、Mac 未完成 Developer ID/公证和实机验收的限制写入发布说明。
+普通提交不创建公开 Release。[release.yml](.github/workflows/release.yml) 由新的 `v*` Tag 或手动输入版本 Tag 触发，重新构建三平台。手动发布必须选择 main，全部成功、Tag 与源码版本一致、五个安装/分发文件齐全后，才在该次运行的源码提交上创建新 Tag 和预览 Release；已有 Tag 指向其他提交时拒绝移动。已有 Release 不覆盖；重复发布同一 Tag 会失败。Windows 未签名、Mac 未完成 Developer ID/公证和实机验收的限制写入发布说明。
 
 用户更新软件需要下载新版安装包；GitHub 更新源码不会自动更新已安装的软件。
 
