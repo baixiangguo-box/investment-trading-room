@@ -30,10 +30,6 @@ jobs:
             os: macos-15
             arch: arm64
             app: release/mac-arm64/投资交易室.app
-          - platform: macos
-            os: macos-15-intel
-            arch: x64
-            app: release/mac/投资交易室.app
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
     env:
