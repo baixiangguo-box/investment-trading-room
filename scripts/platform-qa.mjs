@@ -75,9 +75,19 @@ async function run() { try {
     await evaluate(`window.__platformInput=document.querySelector('#watch-search');window.__platformInput.focus()`);
     window.webContents.debugger.attach('1.3');
     await window.webContents.debugger.sendCommand('Input.insertText', { text: 'old query' });
-    const modifiers = process.platform === 'darwin' ? ['meta'] : ['control'];
-    window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'A', modifiers });
-    window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'A', modifiers });
+    window.show(); window.focus();
+    if (process.platform === 'darwin') {
+      app.focus({ steal: true });
+      await wait(() => window.isFocused());
+      const entries = Menu.getApplicationMenu().items.flatMap(item => item.submenu?.items || []);
+      assert(entries.some(item => item.role === 'selectall' && item.accelerator === 'Command+A'));
+      // sendInputEvent targets Chromium, not the Cocoa menu accelerator path.
+      // Exercise the native first-responder action; physical keys need Mac acceptance.
+      Menu.sendActionToFirstResponder('selectAll:');
+    } else {
+      window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'A', modifiers: ['control'] });
+      window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'A', modifiers: ['control'] });
+    }
     await pause(100);
     assert.deepEqual(await evaluate(`[window.__platformInput.selectionStart,window.__platformInput.selectionEnd]`), [0, 9]);
     await window.webContents.debugger.sendCommand('Input.imeSetComposition', { text: 'pingan', selectionStart: 6, selectionEnd: 6 });
