@@ -9,6 +9,9 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { packagedPaths } from './package-paths.mjs';
+
+if (process.env.TRADING_QA_OFFLINE === '1') globalThis.fetch = async () => { throw new Error('feedback QA intentional offline'); };
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const directory = path.join(root, '.qa', `feedback-integration-${Date.now()}-${randomUUID().slice(0, 8)}`);
@@ -129,7 +132,7 @@ ipcMain.handle = (channel, handler) => originalHandle(channel, async (event, pay
   }
   return result;
 });
-await import(installedRoot ? pathToFileURL(path.join(installedRoot, 'resources', 'app.asar', 'desktop', 'main.mjs')).href : '../desktop/main.mjs');
+await import(installedRoot ? pathToFileURL(path.join(packagedPaths(installedRoot).archive, 'desktop', 'main.mjs')).href : '../desktop/main.mjs');
 
 async function accountPage() {
   await click('.main-nav [data-page="account"]');

@@ -1,7 +1,7 @@
 {
   "name": "investment-trading-room",
   "productName": "投资交易室",
-  "version": "1.2.4",
+  "version": "1.3.0",
   "description": "联网行情、本地账户的A股模拟交易桌面程序",
   "author": "Investment Trading Room",
   "license": "MIT",
@@ -13,12 +13,19 @@
   },
   "scripts": {
     "start": "electron .",
-    "test": "node --test tests/account-service.mjs tests/market.test.mjs tests/ui-pure.mjs tests/polling.mjs",
+    "test": "node --test tests/account-service.mjs tests/market.test.mjs tests/ui-pure.mjs tests/polling.mjs tests/platform.test.mjs",
+    "check": "node scripts/check-source.mjs",
+    "test:desktop": "node scripts/run-electron-qa.mjs scripts/platform-qa.mjs scripts/feedback-qa.mjs",
+    "test:ime": "node scripts/run-electron-qa.mjs scripts/search-input-qa.mjs",
     "test:core": "node --test tests/account-service.mjs",
     "test:market": "node --test tests/market.test.mjs",
     "test:ui": "node --test tests/ui-pure.mjs tests/polling.mjs",
     "package:dir": "electron-builder --win --x64 --dir --publish never",
-    "package:win": "electron-builder --win nsis --x64 --publish never"
+    "package:win": "electron-builder --win nsis --x64 --publish never",
+    "package:mac:arm64": "node scripts/build-mac.mjs arm64",
+    "package:mac:x64": "node scripts/build-mac.mjs x64",
+    "package:mac:arm64:signed": "node scripts/build-mac.mjs arm64 --signed",
+    "package:mac:x64:signed": "node scripts/build-mac.mjs x64 --signed"
   },
   "devDependencies": {
     "electron": "44.7.0",
@@ -56,6 +63,28 @@
       "artifactName": "InvestmentTradingRoom-Setup-${version}-${arch}.${ext}",
       "signAndEditExecutable": true,
       "requestedExecutionLevel": "asInvoker"
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] }
+      ],
+      "icon": "assets/app.icns",
+      "category": "public.app-category.finance",
+      "minimumSystemVersion": "13.0",
+      "artifactName": "InvestmentTradingRoom-Mac-${version}-${arch}.${ext}",
+      "hardenedRuntime": true,
+      "extraFiles": [
+        { "from": "node_modules/electron/dist/LICENSE", "to": "Resources/LICENSE.electron.txt" },
+        { "from": "node_modules/electron/dist/LICENSES.chromium.html", "to": "Resources/LICENSES.chromium.html" }
+      ]
+    },
+    "dmg": {
+      "title": "投资交易室 ${version} (${arch})",
+      "contents": [
+        { "x": 130, "y": 170 },
+        { "x": 410, "y": 170, "type": "link", "path": "/Applications" }
+      ]
     },
     "nsis": {
       "oneClick": false,
