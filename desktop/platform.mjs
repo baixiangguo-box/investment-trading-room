@@ -32,7 +32,7 @@ export function macMenuTemplate(openWindow) {
     { label: '编辑', submenu: [
       { role: 'undo', label: '撤销' }, { role: 'redo', label: '重做' }, { type: 'separator' },
       { role: 'cut', label: '剪切' }, { role: 'copy', label: '复制' },
-      { role: 'paste', label: '粘贴' }, { role: 'selectAll', label: '全选' },
+      { role: 'paste', label: '粘贴' }, { role: 'selectAll', label: '全选', accelerator: 'Command+A' },
     ] },
     { label: '显示', submenu: [
       { role: 'resetZoom', label: '实际大小' }, { role: 'zoomIn', label: '放大' },
