@@ -5,16 +5,19 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing version tag, e.g. v1.3.0 (must match package.json)'
+        description: 'Version tag, e.g. v1.3.0 (manual release uses main; creates a new tag only after tests pass)'
         required: true
         type: string
 permissions:
   contents: read
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 jobs:
   packages:
     uses: ./.github/workflows/build.yml
     with:
-      ref: ${{ inputs.tag || github.ref_name }}
+      ref: ${{ github.sha }}
   publish:
     needs: packages
     runs-on: ubuntu-24.04
@@ -25,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -44,6 +47,14 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$GITHUB_REF" == "refs/heads/main" ]] || { echo 'Manual releases must use main'; exit 1; }
+            if existing_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha' 2>/dev/null); then
+              [[ "$existing_sha" == "$GITHUB_SHA" ]] || { echo 'Existing tag points to a different commit; refusing to move it'; exit 1; }
+            else
+              gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$RELEASE_TAG" -f "sha=$GITHUB_SHA"
+            fi
+          fi
           gh release create "$RELEASE_TAG" --verify-tag --prerelease \
             --title "投资交易室 $RELEASE_TAG · Windows + macOS 预览" \
             --notes-file docs/RELEASE_NOTES.md \
