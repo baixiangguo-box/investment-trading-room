@@ -40,7 +40,7 @@ node scripts/run-electron-qa.mjs scripts/platform-qa.mjs scripts/feedback-qa.mjs
 
 `--offline` 只在验收脚本中启用，不是生产软件的选项。平台脚本使用真实主进程、renderer、IPC、SQLite 和文件读写，显式断网；feedback 与 IME 脚本在已授权的真实 handler 后注入有标记的界面样本，不覆盖核心撮合行情，也不改变原有断言。IME 脚本不带 `--offline` 时仍检查真实公开目录。原 `desktop-qa.mjs` 有非交易日限制，不在普通工作日 CI 中强行跳过或修改那项断言。
 
-`platform-qa.mjs` 在 Windows 检查 7 项，Mac 检查 8 项（多一项菜单/关闭驻留/Dock 重开）。包括 Ctrl/Command 全选、原生 Chromium 组合输入、不受信任窗口拒绝 IPC，以及在途导出期间重复退出仍完成原子备份。报告 `.qa/ci-platform.json` 记录实际运行平台、架构和受控范围。
+`platform-qa.mjs` 在 Windows 检查 7 项，Mac 检查 8 项（多一项菜单/关闭驻留/Dock 重开）。Windows 注入 Ctrl+A，Mac 验证 Command+A 菜单配置并调用 Cocoa 原生全选动作；向 Chromium 注入按键不能替代 Mac 菜单路由。两者均保留完整选区和编辑节点断言，实体 Mac 按键仍需实机验收。另包括 Chromium 组合输入、不受信任窗口拒绝 IPC，以及在途导出期间重复退出仍完成原子备份。报告 `.qa/ci-platform.json` 记录实际运行平台、架构和受控范围。
 
 - `desktop-qa.mjs`：17 项，实际主进程/preload/本地协议/renderer、账户、资金、恢复、重置、图表和日志边界。保存/打开对话框返回隔离文件路径，属于受控对话框测试。其中提交拒绝检查要求市场状态为“休市”，应在已核验日历覆盖的非交易日运行；盘中及仅显示“已收盘”的交易日收盘后不适用这项断言。
 - `search-input-qa.mjs`：16 项，行情、自选、交易搜索；用 Chromium CDP `Input.imeSetComposition`/`Input.insertText` 验证中文组合输入、光标、焦点、旧搜索和旧报价响应。它不等于实际 Windows 拼音候选窗的全面测试。`--expect-regression` 仅用于已知 1.2.1 输入回归，不用于当前发布验收。
