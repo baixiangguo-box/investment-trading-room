@@ -1,0 +1,50 @@
+name: Cross-platform preview release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing version tag, e.g. v1.3.0 (must match package.json)'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  packages:
+    uses: ./.github/workflows/build.yml
+    with:
+      ref: ${{ inputs.tag || github.ref_name }}
+  publish:
+    needs: packages
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.20.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: packages-*
+          path: release
+          merge-multiple: true
+      - name: Require complete Windows and both Mac artifact sets
+        run: node scripts/release-metadata.mjs release --all
+      - name: Create new preview release without overwriting historical assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          gh release create "$RELEASE_TAG" --verify-tag --prerelease \
+            --title "投资交易室 $RELEASE_TAG · Windows + macOS 预览" \
+            --notes-file docs/RELEASE_NOTES.md \
+            release/InvestmentTradingRoom-* release/SHA256SUMS.txt release/build-metadata.json
