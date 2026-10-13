@@ -38,7 +38,7 @@ jobs:
           pattern: packages-*
           path: release
           merge-multiple: true
-      - name: Require complete Windows x64 and Mac arm64 artifact sets
+      - name: Require complete Windows and both Mac artifact sets
         run: node scripts/release-metadata.mjs release --all
       - name: Create new preview release without overwriting historical assets
         env:
