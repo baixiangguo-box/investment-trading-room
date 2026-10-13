@@ -53,6 +53,14 @@ jobs:
           EXPECTED_ARCH: ${{ matrix.arch }}
         run: node -e "if(process.arch!==process.env.EXPECTED_ARCH)throw Error('Runner must match target architecture');console.log(process.versions)"
       - run: npm ci --no-audit --no-fund
+      - name: Install pinned Electron binary (bounded network retries)
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if node node_modules/electron/install.js; then exit 0; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep "$((attempt * 5))"
+          done
       - run: npm run check
       - run: npm test
       - name: Production Electron desktop regression (isolated, controlled offline)
