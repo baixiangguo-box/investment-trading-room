@@ -1,3 +1,4 @@
+param([switch]$OneClick)
 $ErrorActionPreference = 'Stop'
 $taskProjectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $taskCache = Join-Path $taskProjectRoot '.qa\builder-cache'
@@ -18,7 +19,8 @@ try {
     & node 'node_modules\electron\install.js'
     if ($LASTEXITCODE -ne 0) { throw 'Electron运行环境下载失败' }
   }
-  & npm run package:win
+  if ($OneClick) { & npm run package:win:oneclick }
+  else { & npm run package:win }
   if ($LASTEXITCODE -ne 0) { throw 'Windows安装包构建失败' }
 } finally {
   Set-Location -LiteralPath $taskWorkingDirectory.Path

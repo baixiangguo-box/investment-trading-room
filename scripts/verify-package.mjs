@@ -38,8 +38,8 @@ if (application.mac) {
   const binary = await readFile(application.executable);
   assert.equal(binary.readUInt32LE(0), 0xfeedfacf, 'Expected a native 64-bit Mach-O executable');
   const architecture = process.argv.find(arg => arg.startsWith('--arch='))?.slice(7) || process.arch;
-  assert.equal(architecture, 'arm64', 'This release supports Apple Silicon Macs only');
-  assert.equal(binary.readUInt32LE(4), 0x0100000c, 'Mac executable must be native Apple Silicon');
+  assert(['arm64', 'x64'].includes(architecture));
+  assert.equal(binary.readUInt32LE(4), architecture === 'arm64' ? 0x0100000c : 0x01000007, 'Mac executable architecture must match its artifact');
 }
 await mkdir(path.join(root, '.qa'), { recursive: true });
 await writeFile(path.join(root, '.qa', 'package-verification.json'), JSON.stringify({ ok: true, archive, sourceFiles: checks, privateDataIncluded: false }, null, 2));

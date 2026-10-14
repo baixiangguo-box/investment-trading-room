@@ -13,6 +13,10 @@ const application = packagedPaths(process.argv[2] || defaultApplicationRoot(root
 const directory = path.join(root, '.qa', `binary-smoke-${Date.now()}-${randomUUID()}`);
 await mkdir(directory, { recursive: true });
 const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
+if (process.argv.includes('--standalone')) {
+  delete env.NODE_OPTIONS; delete env.NODE_PATH;
+  env.PATH = application.mac ? '/usr/bin:/bin:/usr/sbin:/sbin' : `${process.env.SystemRoot}\\System32;${process.env.SystemRoot}`;
+}
 const version = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')).version;
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function runOnce() {

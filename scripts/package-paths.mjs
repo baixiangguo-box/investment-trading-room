@@ -10,9 +10,6 @@ export function packagedPaths(applicationRoot) {
 
 export function defaultApplicationRoot(root, platform = process.platform, arch = process.arch) {
   if (platform === 'win32') return path.join(root, 'release', 'win-unpacked');
-  if (platform === 'darwin') {
-    if (arch !== 'arm64') throw new Error('本版本只提供 Apple Silicon（arm64）Mac 安装包。');
-    return path.join(root, 'release', 'mac-arm64', '投资交易室.app');
-  }
+  if (platform === 'darwin') return path.join(root, 'release', arch === 'arm64' ? 'mac-arm64' : 'mac', '投资交易室.app');
   throw new Error('安装包核验支持 Windows 与 macOS。');
 }

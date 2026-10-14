@@ -22,8 +22,11 @@
     "test:ui": "node --test tests/ui-pure.mjs tests/polling.mjs",
     "package:dir": "electron-builder --win --x64 --dir --publish never",
     "package:win": "electron-builder --win nsis --x64 --publish never",
+    "package:win:oneclick": "node scripts/build-win-oneclick.mjs",
     "package:mac:arm64": "node scripts/build-mac.mjs arm64",
-    "package:mac:arm64:signed": "node scripts/build-mac.mjs arm64 --signed"
+    "package:mac:x64": "node scripts/build-mac.mjs x64",
+    "package:mac:arm64:signed": "node scripts/build-mac.mjs arm64 --signed",
+    "package:mac:x64:signed": "node scripts/build-mac.mjs x64 --signed"
   },
   "devDependencies": {
     "electron": "44.7.0",
@@ -64,8 +67,9 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["arm64"] },
-        { "target": "zip", "arch": ["arm64"] }
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] },
+        { "target": "pkg", "arch": ["arm64", "x64"] }
       ],
       "icon": "assets/app.icns",
       "category": "public.app-category.finance",
@@ -76,6 +80,13 @@
         { "from": "node_modules/electron/dist/LICENSE", "to": "Resources/LICENSE.electron.txt" },
         { "from": "node_modules/electron/dist/LICENSES.chromium.html", "to": "Resources/LICENSES.chromium.html" }
       ]
+    },
+    "pkg": {
+      "installLocation": "/Applications",
+      "allowAnywhere": false,
+      "allowCurrentUserHome": true,
+      "allowRootDirectory": true,
+      "isRelocatable": false
     },
     "dmg": {
       "title": "投资交易室 ${version} (${arch})",
