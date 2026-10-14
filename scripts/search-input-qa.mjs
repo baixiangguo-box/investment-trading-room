@@ -7,6 +7,10 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { packagedPaths } from './package-paths.mjs';
+
+const offline = process.env.TRADING_QA_OFFLINE === '1';
+if (offline) globalThis.fetch = async () => { throw new Error('IME QA intentional offline'); };
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const directory = path.join(root, '.qa', `search-input-${Date.now()}`);
@@ -65,13 +69,26 @@ async function check(label, run, { regression = false } = {}) {
   }
 }
 
-// Observe genuine production IPC and optionally hold one real reply to prove
-// stale-response handling. No generated market data replaces provider results.
+// With --offline, only renderer search/quote replies use labelled display data;
+// authorization, account operations, delays and all IME assertions stay real.
+function offlineReply(channel, payload, result) {
+  if (!offline || result?.error?.code === 'ACCESS_DENIED') return result;
+  const stamp = new Date().toISOString(), source = 'isolated-ime-display-fixture';
+  const stocks = [['sz000001', '平安银行', 10], ['sh600519', '贵州茅台', 100], ['sz000002', '万科A', 12]].map(([symbol, name, price]) => ({ symbol, code: symbol.slice(2), market: symbol.slice(0, 2), name, type: 'stock', board: 'main', price, previous: price, bid: price, ask: price, bidSize: 1000, askSize: 1000, percent: 0, time: stamp, fetchedAt: stamp, source, cached: false, tradeable: false, warning: '隔离界面夹具，不代表真实行情或成交。' }));
+  if (channel === 'trading:marketList') {
+    // Default page deliberately excludes searched targets, as in the real
+    // amount-ranked list; an old empty-query row cannot satisfy a search check.
+    const query = String(payload?.query || '').trim(), items = query ? stocks.filter(item => item.name.includes(query) || item.code.includes(query)) : stocks.slice(2);
+    return { ok: true, value: { items, total: items.length, page: 1, pages: 1, pageSize: payload?.pageSize || 20, loading: false, cached: false, source, warning: stocks[0].warning } };
+  }
+  if (channel === 'trading:quotes') return { ok: true, value: { items: stocks.filter(item => payload?.symbols?.includes(item.symbol)), cached: false, asOf: stamp, source, warning: stocks[0].warning } };
+  return result;
+}
 const originalHandle = ipcMain.handle.bind(ipcMain);
 ipcMain.handle = (channel, handler) => originalHandle(channel, async (event, payload) => {
   const record = { channel, payload, at: Date.now(), check: activeCheck };
   requests.push(record);
-  const result = await handler(event, payload);
+  const result = offlineReply(channel, payload, await handler(event, payload));
   const gateChannel = delayedReply?.channel || 'trading:marketList';
   const gateMatches = channel === gateChannel && (gateChannel === 'trading:quotes'
     ? payload?.symbols?.length === 1 && payload.symbols[0] === delayedReply?.symbol
@@ -89,7 +106,7 @@ ipcMain.handle = (channel, handler) => originalHandle(channel, async (event, pay
   record.deliveredAt = Date.now();
   return result;
 });
-await import(installedRoot ? pathToFileURL(path.join(installedRoot, 'resources', 'app.asar', 'desktop', 'main.mjs')).href : '../desktop/main.mjs');
+await import(installedRoot ? pathToFileURL(path.join(packagedPaths(installedRoot).archive, 'desktop', 'main.mjs')).href : '../desktop/main.mjs');
 
 const contexts = [
   { key: 'market', input: 'market-search', result: 'tbody .stock-link' },
@@ -112,7 +129,8 @@ async function openContext(context) {
   await evaluate(`(()=>{window.__searchInputProbe?.observer?.disconnect();const input=document.getElementById(${JSON.stringify(context.input)}),ancestors=[];for(let p=input.parentElement;p&&p.id!=='content';p=p.parentElement)ancestors.push(p);const probe={input,ancestors,events:[],detached:0};probe.observer=new MutationObserver(records=>{for(const record of records)for(const removed of record.removedNodes)if(removed===input||removed.contains?.(input))probe.detached++});probe.observer.observe(document.querySelector('#content'),{subtree:true,childList:true});window.__searchInputProbe=probe;for(const type of ['compositionstart','compositionupdate','compositionend','beforeinput','input','keydown','keyup'])input.addEventListener(type,event=>{const entry={type: event.type,trusted:event.isTrusted,composing:event.isComposing,data:event.data,key:event.key,keyCode:event.keyCode,value:input.value,at:Date.now()};probe.events.push(entry);queueMicrotask(()=>{entry.prevented=event.defaultPrevented})});input.focus()})()`);
 }
 async function key(keyName, virtualKey = 13) {
-  const payload = { key: keyName, code: keyName, windowsVirtualKeyCode: virtualKey, nativeVirtualKeyCode: virtualKey };
+  const payload = { key: keyName, code: keyName, windowsVirtualKeyCode: virtualKey };
+  if (process.platform === 'win32') payload.nativeVirtualKeyCode = virtualKey;
   await cdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...payload });
   await cdp('Input.dispatchKeyEvent', { type: 'keyUp', ...payload });
 }
@@ -296,7 +314,7 @@ async function run() {
       const account = await call('account'); assert.equal(account.orders.length, 0); assert.equal(account.trades.length, 0); assert.equal(account.cash, 10000);
       });
     }
-    const result = { ok: true, version, mode: expectRegression ? 'expected-original-regression' : 'fixed-input-validation', regressionConfirmed: expectRegression && regressions === contexts.length, checks, directory, durationMs: Date.now() - started, inputMethod: 'Chromium native CDP Input.imeSetComposition/Input.insertText: start and composing input must be trusted; commit compositionend is required but its original isTrusted flag is recorded (Electron 44 CDP commit may produce false). No DOM events are synthesized.', compositionCommits: commitObservations, isolation: 'Fresh local .qa profile; real public directory; one real IPC reply deliberately delayed and one old quote response deliberately failed for stale-result checks; no user account or market fixtures.' };
+    const result = { ok: true, version, mode: expectRegression ? 'expected-original-regression' : 'fixed-input-validation', regressionConfirmed: expectRegression && regressions === contexts.length, checks, directory, durationMs: Date.now() - started, inputMethod: 'Chromium native CDP Input.imeSetComposition/Input.insertText: start and composing input must be trusted; commit compositionend is required but its original isTrusted flag is recorded (Electron 44 CDP commit may produce false). No DOM events are synthesized.', compositionCommits: commitObservations, isolation: offline ? 'Fresh .qa SQLite; intentionally offline real provider; labelled renderer-only search/quote display samples after authorized handler; delayed replies; unchanged IME assertions; no user account or live-market acceptance.' : 'Fresh local .qa profile; real public directory; one real IPC reply deliberately delayed and one old quote response deliberately failed for stale-result checks; no user account or market fixtures.' };
     await writeFile(path.join(directory, 'report.json'), JSON.stringify({ ...result, requests }, null, 2));
     console.log(JSON.stringify({ ...result, passed: checks.filter(check => check.ok).length }));
     window.webContents.debugger.detach(); app.quit();

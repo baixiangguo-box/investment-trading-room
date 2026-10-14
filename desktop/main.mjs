@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol, ipcMain, dialog, session } from 'electron';
+import { app, BrowserWindow, protocol, ipcMain, dialog, session, Menu } from 'electron';
 import { readFile, writeFile, mkdir, rename, open, realpath } from 'node:fs/promises';
 import { mkdirSync, realpathSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -8,26 +8,28 @@ import { createAccountService } from '../core/account-service.mjs';
 import { getMarketSession } from '../core/market-rules.mjs';
 import { createMarketService } from '../services/market-service.mjs';
 import { mergeQuote } from '../renderer/helpers.js';
+import { APP_NAME, dataDirectory, macMenuTemplate } from './platform.mjs';
 
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+app.setName(APP_NAME);
 const suppliedData = process.argv.find(value => value.startsWith('--data-dir='))?.slice(11);
-if (suppliedData && !path.isAbsolute(suppliedData)) throw new Error('数据目录必须为绝对路径。');
-let dataDir = suppliedData || path.join(app.getPath('documents'), '投资交易室数据');
+let dataDir = dataDirectory({ documents: app.getPath('documents'), appData: app.getPath('appData'), override: suppliedData });
 try {
   // Chromium needs an existing userData folder before Electron becomes ready.
   mkdirSync(dataDir, { recursive: true });
   dataDir = realpathSync(dataDir);
   app.setPath('userData', dataDir);
 } catch {
-  dialog.showErrorBox('投资交易室无法启动', '无法创建本地数据目录，请检查 Windows 文档文件夹的写入权限。');
+  dialog.showErrorBox('投资交易室无法启动', '无法创建本地数据目录，请检查本机数据文件夹的写入权限。');
   app.exit(1);
 }
-app.setName('投资交易室');
 protocol.registerSchemesAsPrivileged([{ scheme: 'trading', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 
 let window, market, accountService, matchingTimer, runningMatch = null, shuttingDown = false, updateTimer;
+let shutdownComplete = false;
 const seenQuotes = new Map();
 const restoreTokens = new Map();
+const pendingOperations = new Set();
 const releaseVersion = JSON.parse(readFileSync(path.join(sourceRoot, 'package.json'), 'utf8')).version;
 const appInfo = { name: '投资交易室', version: releaseVersion };
 const trustedFiles = new Set(['index.html', 'app.js', 'helpers.js', 'polling.js', 'rendering.js', 'styles.css']);
@@ -108,12 +110,15 @@ function authorized(event) {
 function handle(name, callback) {
   ipcMain.handle('trading:' + name, async (event, payload) => {
     if (!authorized(event) || shuttingDown) return { ok: false, error: { code: 'ACCESS_DENIED', message: '桌面会话已结束，请重新打开软件。' } };
-    try { return { ok: true, value: await callback(payload) }; }
+    const operation = Promise.resolve().then(() => callback(payload));
+    pendingOperations.add(operation);
+    try { return { ok: true, value: await operation }; }
     catch (error) {
       const code = typeof error?.code === 'string' ? error.code : 'UNKNOWN_RESULT';
       await writeLog('operation-error', { operation: name, code, message: String(error?.message || error) });
       return { ok: false, error: { code, message: error?.message || '操作结果尚未确认，请查询原委托或核对账户。' } };
     }
+    finally { pendingOperations.delete(operation); }
   });
 }
 
@@ -224,11 +229,13 @@ function registerHandlers() {
 function createWindow() {
   window = new BrowserWindow({
     title: '投资交易室', width: 1460, height: 980, minWidth: 1030, minHeight: 700,
-    backgroundColor: '#f3f5f0', icon: path.join(sourceRoot, 'assets', 'app.ico'), show: false,
+    backgroundColor: '#f3f5f0', icon: path.join(sourceRoot, 'assets', process.platform === 'win32' ? 'app.ico' : 'app.png'), show: false,
     autoHideMenuBar: true,
     webPreferences: { preload: path.join(sourceRoot, 'desktop', 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true },
   });
-  window.setMenu(null);
+  if (process.platform !== 'darwin') window.setMenu(null);
+  const createdWindow = window;
+  window.on('closed', () => { if (window === createdWindow) window = null; restoreTokens.clear(); });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', event => event.preventDefault());
   window.webContents.on('will-attach-webview', event => event.preventDefault());
@@ -238,17 +245,24 @@ function createWindow() {
     const detail = typeof args[1] === 'object' ? args[1] : { level: args[1], message: args[2] };
     if (detail.level === 'error' || detail.level === 3) writeLog('renderer-error', detail.message);
   });
-  window.once('ready-to-show', () => window.show());
+  window.once('ready-to-show', () => { if (!createdWindow.isDestroyed()) createdWindow.show(); });
   window.webContents.once('did-finish-load', () => writeLog('ready', { version: appInfo.version, renderer: 'loaded', dataDir, process: process.pid }));
   window.loadURL('trading://app/index.html');
 }
 
+function openWindow() {
+  if (shuttingDown || !app.isReady() || !accountService) return;
+  if (!window || window.isDestroyed()) createWindow();
+  else { if (window.isMinimized()) window.restore(); window.show(); window.focus(); }
+}
+
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
-  app.on('second-instance', () => { if (window) { if (window.isMinimized()) window.restore(); window.focus(); } });
+  app.on('second-instance', openWindow);
+  app.on('activate', openWindow);
   app.whenReady().then(async () => {
     await mkdir(dataDir, { recursive: true });
-    // Resolve Windows redirected folders before SQLite and atomic cache writes.
+    // Resolve redirected folders/symlinks before SQLite and atomic cache writes.
     dataDir = await realpath(dataDir);
     protocol.handle('trading', async request => {
       const url = new URL(request.url);
@@ -263,6 +277,12 @@ else {
     market = createMarketService({ cacheDir: path.join(dataDir, 'market-cache'), onChange: changed });
     accountService = createAccountService({ dbPath: path.join(dataDir, 'account.sqlite'), quoteProvider: accountQuotes, onChange: changed });
     registerHandlers();
+    if (process.platform === 'darwin') {
+      Menu.setApplicationMenu(Menu.buildFromTemplate(macMenuTemplate(openWindow)));
+      app.setAboutPanelOptions({ applicationName: APP_NAME, applicationVersion: releaseVersion });
+      if (!app.isPackaged) app.dock?.setIcon(path.join(sourceRoot, 'assets', 'app.png'));
+      app.dock?.setMenu(Menu.buildFromTemplate([{ label: '打开主窗口', click: openWindow }]));
+    }
     createWindow();
     market.start().catch(error => writeLog('market-start', error.message));
     matchingTimer = setInterval(processMatching, 15000);
@@ -274,17 +294,22 @@ else {
   });
 }
 
-app.on('window-all-closed', () => app.quit());
+app.on('window-all-closed', () => { if (process.platform !== 'darwin' && !shuttingDown) app.quit(); });
 app.on('before-quit', event => {
-  if (shuttingDown) return;
+  if (shuttingDown) { if (!shutdownComplete) event.preventDefault(); return; }
   event.preventDefault();
   shuttingDown = true;
   clearInterval(matchingTimer);
   clearTimeout(updateTimer);
   (async () => {
-    if (runningMatch) await runningMatch;
+    // Destroy owned windows to cancel native modal dialogs. Stop network work,
+    // then drain authorized operations before closing their SQLite connection.
+    for (const owned of BrowserWindow.getAllWindows()) owned.destroy();
     await market?.close();
+    if (runningMatch) await runningMatch;
+    await Promise.allSettled([...pendingOperations]);
     await accountService?.close();
+    shutdownComplete = true;
     app.quit();
-  })().catch(() => app.exit(0));
+  })().catch(async error => { await writeLog('shutdown-failed', String(error?.message || error)); app.exit(1); });
 });

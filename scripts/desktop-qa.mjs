@@ -5,6 +5,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { packagedPaths } from './package-paths.mjs';
 import { DatabaseSync } from 'node:sqlite';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const directory=path.join(root,'.qa',`electron-integration-${Date.now()}`);
@@ -30,7 +31,7 @@ async function screenshot(name){
  await writeFile(path.join(directory,name),(await window.webContents.capturePage()).toPNG());
 }
 const installedRoot=process.argv.find(a=>a.startsWith('--installed-root='))?.slice(17);
-await import(installedRoot?pathToFileURL(path.join(installedRoot,'resources','app.asar','desktop','main.mjs')).href:'../desktop/main.mjs');
+await import(installedRoot?pathToFileURL(path.join(packagedPaths(installedRoot).archive,'desktop','main.mjs')).href:'../desktop/main.mjs');
 async function exportAccountSnapshot() {
  assert.equal((await call('backup')).ok,true);
  return JSON.parse(await readFile(backupFile,'utf8'));
@@ -78,7 +79,7 @@ async function submitReset(before) {
 async function resetFixtureSnapshot() {
  // A separately labelled in-memory fixture makes clearing non-empty trades and
  // holdings meaningful on a weekend. Market pages still use production sources.
- const {createAccountService}=await import(installedRoot?pathToFileURL(path.join(installedRoot,'resources','app.asar','core','account-service.mjs')).href:'../core/account-service.mjs');
+ const {createAccountService}=await import(installedRoot?pathToFileURL(path.join(packagedPaths(installedRoot).archive,'core','account-service.mjs')).href:'../core/account-service.mjs');
  const time=new Date('2026-10-08T02:00:00Z');
  const service=createAccountService({dbPath:':memory:',now:()=>time,quoteProvider:async symbols=>symbols.map(symbol=>({symbol,type:'stock',name:'平安银行',board:'main',price:10,previous:9.8,ask:10,bid:10,askSize:100000,bidSize:100000,upper:11,lower:9,time:time.toISOString(),fetchedAt:time.toISOString(),tradeable:true,source:'isolated-desktop-reset-fixture'}))});
  try {

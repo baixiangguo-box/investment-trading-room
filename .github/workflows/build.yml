@@ -1,0 +1,110 @@
+name: Windows and macOS build
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  build:
+    name: ${{ matrix.platform }}-${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            os: windows-2022
+            arch: x64
+            app: release/win-unpacked
+          - platform: macos
+            os: macos-15
+            arch: arm64
+            app: release/mac-arm64/投资交易室.app
+          - platform: macos
+            os: macos-15-intel
+            arch: x64
+            app: release/mac/投资交易室.app
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.20.0
+          architecture: ${{ matrix.arch }}
+          cache: npm
+      - name: Verify native runtime architecture
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: node -e "if(process.arch!==process.env.EXPECTED_ARCH)throw Error('Runner must match target architecture');console.log(process.versions)"
+      - run: npm ci --no-audit --no-fund
+      - name: Install pinned Electron binary (bounded network retries)
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if node node_modules/electron/install.js; then exit 0; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep "$((attempt * 5))"
+          done
+      - run: npm run check
+      - run: npm test
+      - name: Production Electron desktop regression (isolated, controlled offline)
+        run: node scripts/run-electron-qa.mjs scripts/platform-qa.mjs scripts/feedback-qa.mjs scripts/search-input-qa.mjs --offline
+      - name: Build Windows NSIS
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: ./scripts/build-win.ps1
+      - name: Build additional Windows one-click installer
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: ./scripts/build-win.ps1 -OneClick
+      - name: Build Mac DMG, ZIP and PKG (ad-hoc app, no Developer ID or notarization)
+        if: matrix.platform == 'macos'
+        run: npm run package:mac:${{ matrix.arch }}
+      - name: Verify packaged source, notices, architecture and absence of private data
+        run: node scripts/verify-package.mjs "${{ matrix.app }}" --arch=${{ matrix.arch }}
+      - name: Regression using the packaged app.asar
+        run: node scripts/run-electron-qa.mjs scripts/platform-qa.mjs scripts/feedback-qa.mjs --offline "--installed-root=${{ github.workspace }}/${{ matrix.app }}"
+      - name: Actual executable two-start and SQLite persistence smoke
+        run: node scripts/smoke-application.mjs "${{ matrix.app }}"
+      - name: Actual native installer and startup without developer tools in PATH
+        run: node scripts/installer-qa.mjs
+      - name: Record release hashes and runtime metadata
+        run: node scripts/release-metadata.mjs release --arch=${{ matrix.arch }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: packages-${{ matrix.platform }}-${{ matrix.arch }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            release/InvestmentTradingRoom-*.exe
+            release/InvestmentTradingRoom-*.dmg
+            release/InvestmentTradingRoom-*.zip
+            release/InvestmentTradingRoom-*.pkg
+            release/SHA256SUMS.txt
+            release/build-metadata.json
+      - name: Upload minimal diagnostic reports (never ledgers or entire .qa)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: checks-${{ matrix.platform }}-${{ matrix.arch }}
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            .qa/ci-platform.json
+            .qa/package-verification.json

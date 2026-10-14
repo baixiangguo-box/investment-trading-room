@@ -20,6 +20,7 @@ desktop/main.mjs        协调账户、行情、文件对话框、生命周期
 | `core/market-rules.mjs` | 证券板块、数量和价格边界、模拟费率、上海时区交易日历 |
 | `services/market-service.mjs` | 行情源请求、响应解析、全目录分页校验、失败退避和缓存 |
 | `desktop/main.mjs` | 应用启动、受限协议与 IPC、原生文件对话框、撮合调度和安全关闭 |
+| `desktop/platform.mjs` | 保持 Windows 旧数据位置、Mac Application Support、原生 Mac 菜单和快捷键 |
 | `desktop/preload.cjs` | 向 renderer 暴露最小 API，保留业务错误码 |
 | `renderer/app.js` | 页面、表单、输入状态、恢复预览和异步请求令牌 |
 | `renderer/helpers.js` | 数据格式化、API 拆包、图表模型和账户响应版本保护 |
@@ -55,7 +56,11 @@ SQLite 使用 WAL、FULL 同步和事务；完整账户以 JSON 保存于 `accou
 
 renderer 通过本地 `trading://app/` 协议加载白名单文件，CSP 禁止远程脚本及 renderer 网络请求。窗口启用 `contextIsolation`、`sandbox` 和 `webSecurity`，禁用 `nodeIntegration`，拒绝导航、新窗口及权限请求。IPC 校验发送者窗口、主框架与协议来源。
 
-文件读取和网络位于主进程；错误在界面使用友好说明，详细日志留在本地数据目录。账户文件与应用目录分离，账户数据不进入 `app.asar`；包核验脚本检查私有数据缺席以及源文件一致性。默认目录会解析 Windows 重定向的物理路径，以保持缓存原子保存位于同一卷。
+文件读取和网络位于主进程；错误在界面使用友好说明，详细日志留在本地数据目录。账户文件与应用目录分离，账户数据不进入 `app.asar`；包核验脚本检查私有数据缺席以及源文件一致性。默认目录解析 Windows 重定向或 Mac 符号链接的物理路径，以保持缓存原子保存位于同一卷。
+
+Windows 关闭最后一个窗口退出。Mac 关闭窗口仅取消该窗口的恢复预览并保留同一个账户/行情服务，通过 Dock activate、菜单或第二实例事件重开；不重复注册 IPC 和撮合定时器。退出先禁止新 IPC，关闭本应用窗口以结束文件对话框，等待已授权操作与撮合完成，再关闭 SQLite。重复退出不会跳过等待，后台旧窗口的 IPC 不能冒用新窗口授权。
+
+Mac `.app/Contents/Resources/app.asar` 与 Windows `resources/app.asar` 使用相同源码；Mac 额外检查 bundle ID、版本、最低系统、图标及 Mach-O CPU。Electron 下载根目录的许可在 Mac 打包时会被上游清理，因此通过 `mac.extraFiles` 单独保存在 bundle 的 Resources 中。
 
 ## 模拟边界
 

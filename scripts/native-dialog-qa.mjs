@@ -5,6 +5,7 @@ import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
+import { packagedPaths } from './package-paths.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const directory = path.join(root, '.qa', `native-dialog-${Date.now()}`);
@@ -24,7 +25,7 @@ async function call(method, payload) {
 }
 async function shot(name) { await writeFile(path.join(directory, name), (await window.webContents.capturePage()).toPNG()); }
 async function check(label, fn) { await fn(); checks.push({ label, ok: true }); console.log('PASS ' + label); }
-await import(installedRoot ? pathToFileURL(path.join(installedRoot, 'resources', 'app.asar', 'desktop', 'main.mjs')).href : '../desktop/main.mjs');
+await import(installedRoot ? pathToFileURL(path.join(packagedPaths(installedRoot).archive, 'desktop', 'main.mjs')).href : '../desktop/main.mjs');
 async function run() { try {
   await app.whenReady();
   window = await waitFor(() => BrowserWindow.getAllWindows()[0]);
@@ -37,7 +38,7 @@ async function run() { try {
   const initial = await call('account');
   const file = path.join(directory, 'native-export.json'), corrupt = path.join(directory, 'native-corrupt.json');
   await writeFile(corrupt, '{invalid-json');
-  console.log(JSON.stringify({ directory, file, corrupt, version: JSON.parse(await readFile(path.join(installedRoot || root, installedRoot ? 'resources/app.asar/package.json' : 'package.json'), 'utf8')).version }));
+  console.log(JSON.stringify({ directory, file, corrupt, version: JSON.parse(await readFile(installedRoot ? path.join(packagedPaths(installedRoot).archive, 'package.json') : path.join(root, 'package.json'), 'utf8')).version }));
   await check('Windows原生保存弹窗取消：无账户变化', async () => {
     console.log('ACTION SAVE_CANCEL');
     assert.equal((await call('backup')).cancelled, true);
@@ -74,7 +75,7 @@ async function run() { try {
     assert.equal((await call('diagnostics')).ok, true);
     await shot('native-restored-account.png');
   });
-  const version = JSON.parse(await readFile(path.join(installedRoot || root, installedRoot ? 'resources/app.asar/package.json' : 'package.json'), 'utf8')).version;
+  const version = JSON.parse(await readFile(installedRoot ? path.join(packagedPaths(installedRoot).archive, 'package.json') : path.join(root, 'package.json'), 'utf8')).version;
   const result = { ok: true, version, directory, passed: checks.length, checks, method: 'Actual Electron/Windows save and open dialogs controlled through Windows MCP; no dialog mocks; independent account directory' };
   await writeFile(path.join(directory, 'report.json'), JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result)); clearTimeout(deadline); app.exit(0);

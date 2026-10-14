@@ -9,6 +9,9 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { packagedPaths } from './package-paths.mjs';
+
+if (process.env.TRADING_QA_OFFLINE === '1') globalThis.fetch = async () => { throw new Error('feedback QA intentional offline'); };
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const directory = path.join(root, '.qa', `feedback-integration-${Date.now()}-${randomUUID().slice(0, 8)}`);
@@ -129,7 +132,7 @@ ipcMain.handle = (channel, handler) => originalHandle(channel, async (event, pay
   }
   return result;
 });
-await import(installedRoot ? pathToFileURL(path.join(installedRoot, 'resources', 'app.asar', 'desktop', 'main.mjs')).href : '../desktop/main.mjs');
+await import(installedRoot ? pathToFileURL(path.join(packagedPaths(installedRoot).archive, 'desktop', 'main.mjs')).href : '../desktop/main.mjs');
 
 async function accountPage() {
   await click('.main-nav [data-page="account"]');
@@ -299,7 +302,15 @@ async function run() {
       await accountPage();
       await waitFor(() => evaluate(`document.querySelector('#connection-status').dataset.refreshRunning!=='true'`));
       const before = await account(); accountGate = gate('account');
-      window.webContents.send('trading:updated'); await waitFor(() => accountGate.captured, 20000, 'old real account reply capture');
+      // Production intentionally coalesces notifications for 1500ms after a
+      // refresh. Wait for a real request rather than assuming one notification
+      // during that cooldown must start a poll. Keep the deadline and stale-data
+      // assertions; stop sending as soon as the real reply is captured.
+      await waitFor(() => {
+        if (accountGate.captured) return true;
+        window.webContents.send('trading:updated');
+        return false;
+      }, 20000, 'old real account reply capture');
       await deposit(3); const newer = await account(); assert.equal(newer.cash, Math.round((before.cash + 3) * 100) / 100);
       const newText = newer.totalAssets.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const oldText = before.totalAssets.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

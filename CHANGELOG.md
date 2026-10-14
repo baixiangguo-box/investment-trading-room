@@ -1,5 +1,14 @@
 # 版本记录
 
+## 1.3.0 — 2026-10-13
+
+- 增加 macOS Apple Silicon / Intel 原生构建、独立命名 DMG 和 ZIP、1024px 图标及多尺寸 ICNS。
+- 新增 Windows 一键安装 EXE 和 Mac 原生 PKG；保留原 NSIS 向导与 DMG/ZIP，托管 Runner 实际安装并在应用 PATH 无开发工具时验证二次启动。
+- 保留 Windows 数据目录、NSIS 设置、App ID、SQLite schema 与 JSON 备份兼容；Mac 使用 Application Support 下的固定 App ID 目录。
+- 增加 Mac 应用/编辑菜单、Command 快捷键、Dock 恢复与关窗驻留；退出等待在途 IPC 和备份，修复重复退出导致提前结束的风险。
+- 增加跨平台路径、SQLite 迁移恢复、原生窗口/输入/IPC、包资源与 CPU 架构核验；原始 153 项逻辑断言保持，新增 7 项。
+- 增加固定依赖与 Action SHA 的三平台 CI、Artifacts、独立 Tag/手动预览发布流程；没有签名公证凭据或实机验收时如实标记限制。
+
 ## 1.2.4 — 2026-10-10
 
 - 首次开源发布，沿用 1.2.3 的行情、自选、交易和本地账户功能。

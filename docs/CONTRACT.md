@@ -1,8 +1,8 @@
 # IPC 与账户接口契约
 
-适用于 1.2.4。界面、Electron 主进程、账户服务和行情服务的职责见 [ARCHITECTURE.md](ARCHITECTURE.md)。
+适用于 1.3.0。界面、Electron 主进程、账户服务和行情服务的职责见 [ARCHITECTURE.md](ARCHITECTURE.md)。IPC 与快照契约沿用 1.2.4，不增加 renderer 的系统权限。
 
-默认数据目录为 Windows“文档/投资交易室数据”；创建后通过 `realpath` 解析实际物理路径，再交给 SQLite 和行情缓存。`--data-dir=<绝对路径>` 可用于隔离开发和测试，不随正常桌面快捷方式传递。
+默认数据目录为 Windows 系统“文档/投资交易室数据”，或 Mac 系统 Application Support 下的 `org.investment.tradingroom`；创建后通过 `realpath` 解析实际物理路径，再交给 SQLite 和行情缓存。`--data-dir=<本平台绝对路径>` 可用于隔离开发和测试，无效参数不回退到真实账户。快照不包含系统路径，Windows/Mac 通用。
 
 前端不访问 Node、SQLite 或外网；金额在接口中为元，账户落盘为整数分。恢复和资金操作必须携带对应账户版本与世代，调用者不能通过更新请求参数绕过预览绑定。
 
